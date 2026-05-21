@@ -6,5 +6,5 @@ tasks:
      path: "backend/deploy/helm/standard-app" # 这里可以故意写错，测试我们的回退逻辑
      image_updates:
        - container: "standard-app"
-         image: "nginx:1.25-alpine" # 暂时用 nginx 测试，或者换成你真实的镜像
-         #image: "nginx:latest" # 暂时用 nginx 测试，或者换成你真实的镜像
+         #image: "nginx:1.25-alpine" # 暂时用 nginx 测试，或者换成你真实的镜像
+         image: "nginx:latest" # 暂时用 nginx 测试，或者换成你真实的镜像
