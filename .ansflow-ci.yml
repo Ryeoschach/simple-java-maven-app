@@ -1,0 +1,64 @@
+# .ansflow-ci.yml - AnsFlow 声明式流水线示例
+
+version: "1.0"
+name: "生产环境自动部署流水线"
+description: "由 GitOps 触发的自动化构建与 K8s 部署"
+
+# 全局变量定义
+variables:
+  APP_NAME: "ansflow-frontend"
+  NAMESPACE: "prod"
+  IMAGE_REPO: "registry.cn-hangzhou.aliyuncs.com/ansflow/frontend"
+
+# 阶段定义
+stages:
+  - build    # 构建阶段
+  - security # 安全扫描
+  - deploy   # 部署阶段
+
+# 任务定义
+tasks:
+  - name: "编译打包"
+    stage: build
+    executor: shell
+    script:
+      - pnpm install
+      - pnpm build
+    artifacts:
+      paths:
+        - dist/
+
+  - name: "容器镜像构建"
+    stage: build
+    executor: docker
+    image: node:18-alpine
+    script:
+      - docker build -t ${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA} .
+      - docker push ${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}
+
+  - name: "基础镜像漏洞扫描"
+    stage: security
+    executor: trivy
+    allow_failure: true
+    params:
+      severity: "CRITICAL,HIGH"
+
+  - name: "K8s 声明式部署"
+    stage: deploy
+    executor: k8s-gitops
+    # 关联项目中的 K8s 集群 ID 或名称
+    cluster: "aliyun-shanghai-cluster"
+    namespace: ${NAMESPACE}
+    # 部署资源路径（相对于 Git 仓库根目录）
+    manifest_path: "deploy/k8s/"
+    # 动态更新镜像版本
+    image_updates:
+      - container: "app-container"
+        image: "${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}"
+
+# 触发规则 (可选)
+rules:
+  - if: '$CI_COMMIT_BRANCH == "main"'
+    when: always
+  - if: '$CI_COMMIT_TAG'
+    when: manual
